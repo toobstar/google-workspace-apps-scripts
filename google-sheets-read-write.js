@@ -16,5 +16,5 @@ function process() {
 
   let outputSheet = activeSS.getSheetByName('output_sheet')
   outputSheet.clear()
-  outputSheet.getRange(1,1,outputData.length, outputData[0].length).setValues(outputData);
+  outputSheet.getRange(1,1,outputData.length, outputData[0].length).setValues(outputData)
 }
