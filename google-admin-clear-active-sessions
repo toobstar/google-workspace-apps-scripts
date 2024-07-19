@@ -1,5 +1,5 @@
 const emails = ['person1@company.com', 'person2@company.com']
-const companyDomain = 'prospection.com'
+const companyDomain = 'company.com'
 
 function clearSessions() {
   let pageToken, page, count = 0
