@@ -1,5 +1,7 @@
 /*
 
+ Set up access to Slack API
+ 
  1. Create Custom App in Slack in https://api.slack.com/apps 
  2. Create app "From scratch"
  3. Go to the left sidebar and click OAuth & Permissions
@@ -10,6 +12,12 @@
  6. Go to the left sidebar and "Install App" and "Request to install"
  7. Get an Admin to accept the request
  8. Refresh the "Intall App" page to finalise intall process
+
+ This is built to run in google sheets code environment:
+ 
+ 1. Create a new sheet via https://sheets.new
+ 2. Go to Menu > "Extensions" > "Apps Script" and paste the contents here into the editor
+ 3. Run initChannels() then archiveNoMembers() when ready
  
 */
 
