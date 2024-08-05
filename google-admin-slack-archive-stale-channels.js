@@ -8,11 +8,10 @@
       https://api.slack.com/methods/conversations.archive
  5. Record the oauth token to be used in API token var below
  6. Go to the left sidebar and "Install App" and "Request to install"
- 7. Get an Admin accept to accept the request
+ 7. Get an Admin to accept the request
  8. Refresh the "Intall App" page to finalise intall process
-
+ 
 */
-
 
 const SLACK_API_TOKEN = 'xoxb-????????'
 const sheet_channels = 'channels'
