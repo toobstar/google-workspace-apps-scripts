@@ -8,6 +8,7 @@
  4. Scroll down to find "Scopes" and add those required by: 
       https://api.slack.com/methods/conversations.join
       https://api.slack.com/methods/conversations.archive
+      https://api.slack.com/methods/conversations.history
  5. Record the oauth token to be used in API token var below
  6. Go to the left sidebar and "Install App" and "Request to install"
  7. Get an Admin to accept the request
@@ -17,7 +18,11 @@
  
  1. Create a new sheet via https://sheets.new
  2. Go to Menu > "Extensions" > "Apps Script" and paste the contents here into the editor
- 3. Run initChannels() then archiveNoMembers() when ready
+ 3. Run in order:
+      a) initChannels() 
+      b) fillAgeOfLastMessage()
+      c) archiveNoMembers()
+      d) archiveNoRecentMessages()      
  
 */
 
@@ -28,6 +33,17 @@ const sheet_archive_record = 'archived'
 let ss = SpreadsheetApp.getActiveSpreadsheet()
 
 function initChannels() {
+  let channelSheet = initChannelSheet()
+
+  fetchSlackApi('conversations.list', { limit: 1000 }, function(response) {
+    let activeChannels = response.channels.filter(c => !c.is_archived)
+    let channelInfoOutput = activeChannels.map(c => [c.name, c.id, c.num_members, new Date(c.updated), ''])
+    channelInfoOutput.unshift(['name', 'id', '# members', 'updated', 'last_message'])
+    channelSheet.getRange(1,1,channelInfoOutput.length, channelInfoOutput[0].length).setValues(channelInfoOutput)
+  })
+}
+
+function initChannelSheet() {
   let channelSheet = ss.getSheetByName(sheet_channels)
   if (channelSheet != null) {
     channelSheet.clear()
@@ -35,13 +51,74 @@ function initChannels() {
     channelSheet = ss.insertSheet()
     channelSheet.setName(sheet_channels)
   }
+}
 
-  fetchSlackApi('conversations.list', { limit: 1000 }, function(response) {
-    let activeChannels = response.channels.filter(c => !c.is_archived)
-    let channelInfo = activeChannels.map(c => [c.name, c.id, c.num_members, new Date(c.updated)])
-    channelInfo.unshift(['name', 'id', '# members', 'updated'])
-    channelSheet.getRange(1, 1, channelInfo.length, channelInfo[0].length).setValues(channelInfo)
+function fillAgeOfLastMessage() {
+  let channelSheet = ss.getSheetByName(sheet_channels)
+  let channelData = channelSheet.getDataRange().getValues()
+  channelData.forEach((row, idx) => {
+    if (idx > 0) { // skip header
+      [name, channelId, numMembers, updatedDate, latestMessage] = row
+      if (!latestMessage) {
+        Utilities.sleep(3000)
+        fetchSlackApi('conversations.join', {'channel': channelId}, function(r1) {
+          if (r1.ok) {
+            console.log('join ok', idx, name, channelId)
+            let payload = {'limit': 20, 'channel': channelId}
+            fetchSlackApi('conversations.history', payload, function(res) {
+              
+              let msgs = res.messages
+              msgs = msgs.filter(m => m.type == 'message')
+              msgs = msgs.filter(m => !m.subtype || m.subtype != 'bot_message')
+              msgs = msgs.filter(m => !m.subtype || m.subtype != 'channel_join')
+              console.log(name, 'count before/after ' , res.messages.length, msgs.length)
+
+              if (msgs.length > 0) {
+                let latestMessage = msgs[0]
+                let d = latestMessage.ts.split('.')[0]
+                let latestDate = new Date(d * 1000)
+                console.log(name, latestDate, latestMessage.text)
+                channelSheet.getRange
+                let cell = channelSheet.getRange((idx+1),5)
+                cell.setValue(latestDate);
+              }
+            })
+          } else {
+            console.error(r1)
+          }
+        })   
+      } else {
+        console.log('skipping: ', name, latestMessage)
+      }
+    }
   })
+}
+
+function archiveNoRecentMessages() {
+
+  let archivedSheet = ss.getSheetByName(sheet_archive_record)
+  if (!archivedSheet) {
+    archivedSheet = ss.insertSheet()
+    archivedSheet.setName(sheet_archive_record)
+    archivedSheet.appendRow(['channel', 'id', 'date'])
+  }
+
+  let cutoffDate = new Date('2023-05-01')
+
+  let channelSheet = ss.getSheetByName(sheet_channels)
+  let channelData = channelSheet.getDataRange().getValues()
+  channelData.forEach((row, idx) => {
+    if (idx > 0) { // skip header
+      [name, id, numMembers, updatedDate, latestMessageDate] = row
+      
+      if (latestMessageDate && latestMessageDate < cutoffDate) {
+        console.log('To be archived', name, latestMessageDate)
+        Utilities.sleep(2000)
+        archiveChannel(name, id, archivedSheet)
+      }
+    }
+  })
+
 }
 
 function archiveNoMembers() {
@@ -74,6 +151,7 @@ function archiveChannel(channelName, channelId, archivedSheet) {
       fetchSlackApi('conversations.archive', {'channel': channelId}, function(r2) {
         if (r2.ok) {
           archivedSheet.appendRow([channelName, channelId, new Date()])
+          console.log('archived ', channelName)
         } else {
           console.error(r2)    
         }
@@ -111,12 +189,3 @@ function fetchSlackApi(method, params, callback) {
     callback(json, null);
   }
 }
-
-
-
-
-
-
-
-
-
