@@ -29,6 +29,7 @@
 const SLACK_API_TOKEN = 'xoxb-????????'
 const sheet_channels = 'channels'
 const sheet_archive_record = 'archived'
+const CUTOFF_DATE = '2023-05-01'
 
 let ss = SpreadsheetApp.getActiveSpreadsheet()
 
@@ -50,6 +51,15 @@ function initChannelSheet() {
   } else {
     channelSheet = ss.insertSheet()
     channelSheet.setName(sheet_channels)
+  }
+}
+
+function initArchiveSheet() {
+  let archivedSheet = ss.getSheetByName(sheet_archive_record)
+  if (!archivedSheet) {
+    archivedSheet = ss.insertSheet()
+    archivedSheet.setName(sheet_archive_record)
+    archivedSheet.appendRow(['channel', 'id', 'date'])
   }
 }
 
@@ -95,15 +105,9 @@ function fillAgeOfLastMessage() {
 }
 
 function archiveNoRecentMessages() {
+  let archivedSheet = initArchiveSheet()
 
-  let archivedSheet = ss.getSheetByName(sheet_archive_record)
-  if (!archivedSheet) {
-    archivedSheet = ss.insertSheet()
-    archivedSheet.setName(sheet_archive_record)
-    archivedSheet.appendRow(['channel', 'id', 'date'])
-  }
-
-  let cutoffDate = new Date('2023-05-01')
+  let cutoffDate = new Date(CUTOFF_DATE)
 
   let channelSheet = ss.getSheetByName(sheet_channels)
   let channelData = channelSheet.getDataRange().getValues()
@@ -122,13 +126,7 @@ function archiveNoRecentMessages() {
 }
 
 function archiveNoMembers() {
-
-  let archivedSheet = ss.getSheetByName(sheet_archive_record)
-  if (!archivedSheet) {
-    archivedSheet = ss.insertSheet()
-    archivedSheet.setName(sheet_archive_record)
-    archivedSheet.appendRow(['channel', 'id', 'date'])
-  }
+  let archivedSheet = initArchiveSheet()
 
   let channelSheet = ss.getSheetByName(sheet_channels)
   let channelData = channelSheet.getDataRange().getValues()
@@ -164,18 +162,18 @@ function archiveChannel(channelName, channelId, archivedSheet) {
 }
 
 function fetchSlackApi(method, params, callback) {
-  const url = `https://slack.com/api/${method}`;
+  const url = `https://slack.com/api/${method}`
   const headers = {
     'Content-Type': 'application/x-www-form-urlencoded',
     'Authorization': `Bearer ${SLACK_API_TOKEN}`,
-  };
+  }
 
   const options = {
     method: 'GET',
     headers: headers,
     payload: params,
     muteHttpExceptions: true,
-  };
+  }
 
   const response = UrlFetchApp.fetch(url, options);
   const json = JSON.parse(response.getContentText());
@@ -184,8 +182,8 @@ function fetchSlackApi(method, params, callback) {
   }
 
   if (json.response_metadata && json.response_metadata.next_cursor) {
-    callback(json, json.response_metadata.next_cursor);
+    callback(json, json.response_metadata.next_cursor)
   } else {
-    callback(json, null);
+    callback(json, null)
   }
 }
