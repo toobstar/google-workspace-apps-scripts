@@ -4,11 +4,11 @@ A collection of [Google Workspace apps scripts](https://www.google.com/script/st
 
 A popular (SysAdmin) approach is it use the [GAM CLI tool](https://github.com/GAM-team/GAM) but I find (as a former software engineer) that code within the Google Apps Script environment is preferable.
 
-### Google: Clear Active Sessions
+### Google Workspace: Clear Active Sessions
 Remove authenticated session tokens for users who have signed in with google
 
 ### Slack: Archive channels with low activity
 Connect to Slack, join public channels, determine level of activity, and based on threshold archive channel
 
-### Google Table: Utils
+### Google Sheets: Utils
 Commonly used code to read in, process, and write to google sheets 
