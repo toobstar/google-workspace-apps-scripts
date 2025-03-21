@@ -1,4 +1,4 @@
-# google-workspace apps-scripts
+# Google Workspace App Scripts
 
 A collection of [Google Workspace apps scripts](https://www.google.com/script/start/) that I use a lot or have found useful.  As an administrator for Google Workspace the admin portal is annoyingly limited.  There is more control with enterprise license versions, but even then it's often useful to use other tools to assist in automation or bulk updates. 
 
