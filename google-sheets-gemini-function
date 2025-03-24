@@ -1,11 +1,21 @@
+/**
+    As compelling at Google's Gemini features are, and the fact they are sprinkled across the Google Product suite
+    (including Sheets) it seems like a massive oversight to not include a direct function call from a cell to Gemini.
+    This script allows you to correct that with a hook into your own API instance.
+
+    By doing this you can leverage Gemini AI insights in a spreadsheet, with all the benefits of auto-fill and 
+    updates as data changes. 
+*/
+
 // Setup an API key: https://aistudio.google.com/app/apikey
 const apiKey = "???"
 
-// Background context: To publish as function:
-// https://sheetbest.com/blog/deploying-google-sheets-custom-functions/
-
-// Background context: scope for url-fetch required 
-// https://developers.google.com/apps-script/reference/url-fetch
+// Background context: 
+//    To publish as function:
+//       https://sheetbest.com/blog/deploying-google-sheets-custom-functions/
+//
+//    Url-fetch:
+//       https://developers.google.com/apps-script/reference/url-fetch
 
 const cHITS = 'HITS'
 const cMISSES = 'MISSES'
