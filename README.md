@@ -16,4 +16,7 @@ Commonly used code to read in, process, and write to google sheets
 ### [Google: Email to Drive](google-email-to-drive-filter.js)
 A common use case is for emails coming into a user or group email to have attachments that are useful to also make available in a Google Drive location
 
+### [Google Sheets: Gemini function](google-sheets-gemini-function.js)
+Call Gemini AI Assistant from a cell facilitating simple bulk and auto-refreshing query execution
+
   
