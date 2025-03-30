@@ -5,17 +5,19 @@
 
     By doing this you can leverage Gemini AI insights in a spreadsheet, with all the benefits of auto-fill and 
     updates as data changes. 
+
+    Background: 
+        To publish as function https://sheetbest.com/blog/deploying-google-sheets-custom-functions/
+
+        Url-fetch https://developers.google.com/apps-script/reference/url-fetch    
 */
 
 // Setup an API key: https://aistudio.google.com/app/apikey
 const apiKey = "???"
 
-// Background context: 
-//    To publish as function:
-//       https://sheetbest.com/blog/deploying-google-sheets-custom-functions/
-//
-//    Url-fetch:
-//       https://developers.google.com/apps-script/reference/url-fetch
+// https://discuss.ai.google.dev/t/gemini-pro-open-source-model-suddenly-its-throwing-on-404-error/69200
+// const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"  
+const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-002:generateContent"  
 
 const cHITS = 'HITS'
 const cMISSES = 'MISSES'
@@ -73,10 +75,6 @@ function PROMPT_GEMINI(objective, dataRange) {
   if (!Array.isArray(dataRange)) {
     dataRange = [[dataRange]] // Converting single cell input to a 2D array
   }
-
-  // https://discuss.ai.google.dev/t/gemini-pro-open-source-model-suddenly-its-throwing-on-404-error/69200
-  // const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"  
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-002:generateContent"  
 
   let results = []
 
