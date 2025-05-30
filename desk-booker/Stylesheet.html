@@ -1,0 +1,603 @@
+<style>
+  body {
+    font-family: "Poppins", sans-serif;
+    font-size: 0.7em;
+    color: #01515b;
+  }
+
+  span.refresh[title]:hover::after, span.refresh0[title]:hover::after {
+    content: attr(title);
+    font-size: 2em;
+    z-index: 9999;
+    position: absolute;
+    background-color: #ffee96ff;
+    margin: 20px;
+    padding: 20px;
+    width: 300px;
+    left: -100px;
+  }
+
+  span.refresh0[title]:hover::after {
+    left: -50px;
+  }
+
+  .front {
+    width: 120px;
+    height: 20px;
+    top: 0px;
+    left: 0px;
+    background-color: lightgrey;
+    padding: 5px;
+  }
+
+  #deskInfoPanel {
+    position: absolute;
+    width: 150px;
+    height: 100px;
+    top: 100px;
+    left: 900px;
+    background-color: lightgrey;
+    padding: 15px;
+  }
+
+  .selector {
+    background-color: white;
+    color: black;
+    top: 0px;
+    left: 410px;
+    height: 15px;
+    width: 150px;
+    position: absolute;
+    cursor: pointer;
+  }
+
+  .selector .selected {
+    background-color: black;
+    color: white;
+  }
+
+  .clickable {
+    /* background-color: #ffee96ff; */
+    transition: all .15s ease-in-out;
+  }
+
+  .clickable:hover {
+    transform: scale(1.05);
+  }
+
+  .refresh, .refresh0 {
+    position: absolute;
+    left: 900px;
+    cursor: pointer;
+  }
+
+  .refresh0 { left: 860px; }
+
+  .desk,
+  .room {
+    width: 70px;
+    height: 70px;
+    background-color: #9cfed7ff;
+    display: inline-block;
+    position: absolute; 
+    border-radius: 5px;
+    margin: 20px;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  /* .desk[title]:hover::after {
+    content: attr(title);
+    font-size: 2em;
+    position: absolute;
+    background-color: #ffee96ff;
+    margin: 20px;
+    padding: 20px;
+    width: 300px;
+    left: -100px;
+  } */
+
+  #scheduled {
+    color: black;
+    cursor: pointer;
+    background-color: white;
+    color: white;
+    top: 640px;
+    left: 360px;
+    position: absolute;
+    cursor: pointer;
+    font-size: 1.3em;
+    padding: 10px;
+    border-radius: 5px;
+
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+  }
+
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  .selected {
+    border: 1px solid black;
+  }
+
+  #roomSchedule {
+    display: none;
+  }
+
+  .room {
+    background-color: Lightblue;
+  }
+
+
+  #profiles {
+    top: 65px;
+    left: 870px;
+    position: absolute;
+    width: 350px;
+  }
+
+  .profileImage {
+    display: inline;
+    margin: 2px;
+    width: 70px;
+    border-radius: 4px;
+  }
+
+  .profileImage[title]:hover::after {
+    content: attr(title);
+    font-size: 2em;
+    z-index: 999;
+    position: absolute;
+    background-color: #ffee96ff;
+    margin: 20px;
+    padding: 20px;
+    width: 400px
+  }
+
+  .booked {
+    cursor: no-drop;
+    color: white;
+    background-color: #ff9999ff;
+  }
+
+  .warning {
+    background-color: #ff9999ff;
+    padding: 7px;
+  }
+
+  .bookedText {
+    background-color: #444;
+  }
+
+  .booked:hover>.bookedText {
+    color: transparent;
+    background-color: transparent;
+  }
+
+  .historical {
+    background-color: #ffee96ff;
+    cursor: no-drop;
+  }
+
+  .yourReservation {
+    background-color: #9cfed7ff;
+  }
+
+  .free {
+    background-color: #9cfed7ff;
+    cursor: pointer;
+  }
+
+  .current {
+    font-weight: bold;
+    font-style: italic;
+    background-color: #9cfed7ff;
+  }
+
+  .roomTable {
+    font-size: 0.6em;
+    border-collapse: collapse;
+  }
+
+  .roomTable td {
+    width: 60px;
+    border: 1px solid lightgrey;
+  }
+
+  .roomTable td.eventDescription {
+    width: 200px;
+    white-space: nowrap;
+  }
+
+  .roomTable td.current {
+    border: 3px double #33337eff;
+  }
+
+  .roomTable td.booked {
+    /* template:red */
+    background-color: #ff9999ff;
+  }
+
+  /* Loader  */
+  #loader {
+    width: 48px;
+    height: 48px;
+    border: 5px solid Lightblue;
+    border-radius: 50%;
+    box-sizing: border-box;
+    position: relative;
+    animation: pulse 1s linear infinite;
+    display: table;
+    margin: 0 auto;
+  }
+
+  #loader:after {
+    content: '';
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    border: 5px solid Lightblue;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    animation: scaleUp 1s linear infinite;
+  }
+
+  @keyframes scaleUp {
+    0% {
+      transform: translate(-50%, -50%) scale(0)
+    }
+
+    60%,
+    100% {
+      transform: translate(-50%, -50%) scale(1)
+    }
+  }
+
+  @keyframes pulse {
+
+    0%,
+    60%,
+    100% {
+      transform: scale(1)
+    }
+
+    80% {
+      transform: scale(1.2)
+    }
+  }
+
+  #myModal {
+    overflow: hidden;
+    height: 0;
+    opacity: 0;
+    transition: height 0ms 400ms, opacity 400ms 0ms;
+  }
+
+  #myModal.visible {
+    /* height: auto; */
+    height: 100%;
+    opacity: 1;
+    transition: height 0ms 0ms, opacity 600ms 0ms;
+  }
+
+  .modal {
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgb(0, 0, 0);
+    background-color: rgba(0, 0, 0, 0.4);
+  }
+
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 800px;
+    text-align: center;
+    font-size: 2em;
+  }
+
+  .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    display: none;
+  }
+
+  .close:hover,
+  .close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .blink {
+    animation: blinker 2s linear infinite;
+    color: #00006b;
+  }
+
+  @keyframes blinker {
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @media (min-width: 540px) {
+
+    /* Desk Layout */
+    :root {
+      --row1Top: 50px;
+      --row2Top: 130px;
+      --row3Top: 210px;
+      --row4Top: calc(300px + 50px);
+      --row5Top: calc(300px + 130px);
+      --row6Top: calc(300px + 210px);
+
+      --col1Left: calc(100px + (0 * 175px));
+      --col2Left: calc(175px + (0 * 175px));
+
+      --col3Left: calc(100px + (1 * 175px));
+      --col4Left: calc(175px + (1 * 175px));
+
+      --col5Left: calc(100px + (2 * 175px));
+      --col6Left: calc(175px + (2 * 175px));
+
+      --col7Left: calc(30px + 100px + (3 * 175px));
+      --col8Left: calc(30px + 175px + (3 * 175px));
+
+      --col1aLeft: calc(100px + var(--col1Left));
+      --col2aLeft: calc(100px + var(--col2Left));
+
+      --col3aLeft: calc(100px + var(--col3Left));
+      --col4aLeft: calc(100px + var(--col4Left));
+
+      --col5aLeft: calc(100px + var(--col5Left));
+      --col6aLeft: calc(100px + var(--col6Left));
+    }
+
+    #Pulse {
+      top: 470px;
+      left: 790px;
+      width: 160px;
+      height: 120px;
+    }
+
+    #Watson {
+      top: 430px;
+      left: 0px;
+      width: 70px;
+      height: 70px;
+    }
+
+    #Qilin {
+      top: 430px;
+      left: 75px;
+      width: 70px;
+      height: 70px;
+    }
+
+    #Tardis {
+      top: 510px;
+      left: 0px;
+      width: 145px;
+      height: 80px;
+    }
+
+    .desk1 {
+      top: var(--row3Top);
+      left: var(--col1Left);
+    }
+
+    .desk2 {
+      top: var(--row2Top);
+      left: var(--col1Left);
+    }
+
+    .desk3 {
+      top: var(--row1Top);
+      left: var(--col1Left);
+    }
+
+    .desk4 {
+      top: var(--row3Top);
+      left: var(--col2Left);
+    }
+
+    .desk5 {
+      top: var(--row2Top);
+      left: var(--col2Left);
+    }
+
+    .desk6 {
+      top: var(--row1Top);
+      left: var(--col2Left);
+    }
+
+
+    .desk7 {
+      top: var(--row3Top);
+      left: var(--col3Left);
+    }
+
+    .desk8 {
+      top: var(--row2Top);
+      left: var(--col3Left);
+    }
+
+    .desk9 {
+      top: var(--row1Top);
+      left: var(--col3Left);
+    }
+
+    .desk10 {
+      top: var(--row3Top);
+      left: var(--col4Left);
+    }
+
+    .desk11 {
+      top: var(--row2Top);
+      left: var(--col4Left);
+    }
+
+    .desk12 {
+      top: var(--row1Top);
+      left: var(--col4Left);
+    }
+
+
+    .desk13 {
+      top: var(--row3Top);
+      left: var(--col5Left);
+    }
+
+    .desk14 {
+      top: var(--row2Top);
+      left: var(--col5Left);
+    }
+
+    .desk15 {
+      top: var(--row1Top);
+      left: var(--col5Left);
+    }
+
+    .desk16 {
+      top: var(--row3Top);
+      left: var(--col6Left);
+    }
+
+    .desk17 {
+      top: var(--row2Top);
+      left: var(--col6Left);
+    }
+
+    .desk18 {
+      top: var(--row1Top);
+      left: var(--col6Left);
+    }
+
+    .desk35 {
+      top: var(--row2Top);
+      left: var(--col7Left);
+    }
+
+    .desk36 {
+      top: var(--row1Top);
+      left: var(--col7Left);
+    }
+
+    .desk37 {
+      top: var(--row2Top);
+      left: var(--col8Left);
+    }
+
+    .desk38 {
+      top: var(--row1Top);
+      left: var(--col8Left);
+    }
+
+    .desk19 {
+      top: var(--row6Top);
+      left: var(--col1aLeft);
+    }
+
+    .desk20 {
+      top: var(--row5Top);
+      left: var(--col1aLeft);
+    }
+
+    .desk21 {
+      top: var(--row4Top);
+      left: var(--col1aLeft);
+    }
+
+    .desk22 {
+      top: var(--row6Top);
+      left: var(--col2aLeft);
+    }
+
+    .desk23 {
+      top: var(--row5Top);
+      left: var(--col2aLeft);
+    }
+
+    .desk24 {
+      top: var(--row4Top);
+      left: var(--col2aLeft);
+    }
+
+    .desk25 {
+      top: var(--row6Top);
+      left: var(--col3aLeft);
+    }
+
+    .desk26 {
+      top: var(--row5Top);
+      left: var(--col3aLeft);
+    }
+
+    .desk27 {
+      top: var(--row4Top);
+      left: var(--col3aLeft);
+    }
+
+    .desk28 {
+      top: var(--row6Top);
+      left: var(--col4aLeft);
+    }
+
+    .desk29 {
+      top: var(--row5Top);
+      left: var(--col4aLeft);
+    }
+
+    .desk30 {
+      top: var(--row4Top);
+      left: var(--col4aLeft);
+    }
+
+    .desk31 {
+      top: var(--row6Top);
+      left: var(--col5aLeft);
+    }
+
+    .desk32 {
+      top: var(--row5Top);
+      left: var(--col5aLeft);
+    }
+
+    .desk33 {
+      top: var(--row6Top);
+      left: var(--col6aLeft);
+    }
+
+    .desk34 {
+      top: var(--row5Top);
+      left: var(--col6aLeft);
+    }
+
+
+  }
+</style>
