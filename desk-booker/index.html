@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <!-- <base target="_self"> -->
+  <?!= include('Stylesheet'); ?>
+  <?!= include('StylesheetMobile'); ?>
+  <?!= include('Fireworks'); ?>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Poppins">
+
+</head>
+
+<body>
+  <script>
+    let deskToBeBooked
+    let roomToBeBooked
+    let timeToBeBooked
+    let dateToBeBooked
+    let eventForRoomToBeBooked
+    let todaysDate
+    let tomorrowsDate
+    let todaysDateIso
+    let tomorrowsDateIso
+    let roomBookings
+    let deskBookings
+    let todaysCalendar = true
+    let currentTimeArrayIndex
+    let currentTime
+    let profiles
+    let updateDate
+    let deskInfo
+
+    const roomBookingSlots = ['09:00', '09:30', '10:00', '10:30',
+      '11:00', '11:30', '12:00', '12:30','13:00', '13:30','14:00', '14:30',
+      '15:00', '15:30', '16:00', '16:30','17:00', '17:30']
+
+    const rooms = ['Pulse', 'Qilin', 'Tardis', 'Watson']
+
+    function syncToStorage(result) {
+
+      //console.log("syncToStorage", result)
+
+      updateDate = result.updateDate
+
+      todaysDate = result.todaysDate
+      tomorrowsDate = result.tomorrowsDate      
+
+      todaysDateIso = result.todaysDateIso
+      tomorrowsDateIso = result.tomorrowsDateIso
+
+      currentTimeArrayIndex = result.currentTimeArrayIndex
+      currentTime = result.currentTime      
+
+      roomBookings = result.rooms
+      deskBookings = result.desks
+      deskInfo = result.deskInfo
+
+      profiles = result.profiles
+
+      let prefix = (todaysCalendar ? 'today_' : 'tomorrow_')
+
+      localStorage.setItem("updateDate", updateDate);
+      localStorage.setItem("todaysDate", todaysDate);
+      localStorage.setItem("tomorrowsDate", tomorrowsDate);
+      localStorage.setItem("todaysDateIso", todaysDateIso);
+      localStorage.setItem("tomorrowsDateIso", tomorrowsDateIso);
+      localStorage.setItem("currentTimeArrayIndex", currentTimeArrayIndex);
+      localStorage.setItem("currentTime", currentTime);
+      localStorage.setItem("deskInfo", JSON.stringify(deskInfo));    
+
+      localStorage.setItem(prefix + "roomBookings", JSON.stringify(roomBookings));
+      localStorage.setItem(prefix + "deskBookings", JSON.stringify(deskBookings));      
+      localStorage.setItem("profiles", JSON.stringify(profiles));      
+
+      scheduledEvents = result.scheduledEvents
+      localStorage.setItem(prefix + "scheduledEvents", JSON.stringify(scheduledEvents));      
+
+      let syncTime = new Date()
+      localStorage.setItem(prefix + "SYNC_TIME", syncTime);
+
+      updatedRefreshText()      
+    }
+
+    function updatedRefreshText() {
+      let prefix = (todaysCalendar ? 'today_' : 'tomorrow_')
+      let lastBrowserSync = new Date(localStorage.getItem(prefix + "SYNC_TIME"))
+      let ageMinsBrowser = Math.ceil(Math.abs(new Date() - lastBrowserSync) / (1000 * 60))
+
+      let refreshEle = document.getElementById('refresh')
+
+      let msg = '' 
+      if (ageMinsBrowser > 10) {
+        msg = 'Browser last updated ' + ageMinsBrowser + ' mins ago <br/>  Click to refresh'
+        refreshEle.classList.add('warning')
+      } else {
+        refreshEle.classList.remove('warning')
+        
+        if (updateDate) {
+          let lastServerSync = new Date(updateDate)
+          let ageMinsServer = Math.ceil(Math.abs(new Date() - lastServerSync) / (1000 * 60))
+
+          while (ageMinsServer > 10) {
+            ageMinsServer -= 10
+          }
+          if (ageMinsServer < 2) {
+            msg += 'App refreshed now<br>' 
+          } else {
+            msg += 'App: ' + ageMinsServer + ' mins ago (' + (10-ageMinsServer) + ' mins to next)<br>' 
+          }
+        }
+        if (ageMinsBrowser <= 2) {
+          msg += 'Browser refreshed now' 
+        } else {
+          msg += 'Browser: ' + ageMinsBrowser + ' mins ago' 
+        }
+      }
+
+      
+      refreshEle.title = 'Desk booker app refreshes every 10 minutes.  Click to refresh browser'
+      refreshEle.innerHTML = msg
+    }
+
+    function timeFromDate(d) {
+      return d.toLocaleTimeString()
+    }
+
+    function syncFromStorage() {
+      let prefix = (todaysCalendar ? 'today_' : 'tomorrow_')
+      // console.log('syncFromStorage', todaysCalendar, prefix)
+
+      updateDate = localStorage.getItem("updateDate");
+
+      todaysDate = localStorage.getItem("todaysDate");
+      tomorrowsDate = localStorage.getItem("tomorrowsDate");
+
+      todaysDateIso = localStorage.getItem("todaysDateIso");
+      tomorrowsDateIso = localStorage.getItem("tomorrowsDateIso");
+      
+      currentTimeArrayIndex = localStorage.getItem("currentTimeArrayIndex");
+      currentTime = localStorage.getItem("currentTime");
+      deskInfo = JSON.parse(localStorage.getItem("deskInfo"));
+
+
+      roomBookings = JSON.parse(localStorage.getItem(prefix + "roomBookings"));
+      deskBookings = JSON.parse(localStorage.getItem(prefix + "deskBookings"));
+      scheduledEvents = JSON.parse(localStorage.getItem(prefix + "scheduledEvents"));
+      profiles = JSON.parse(localStorage.getItem("profiles"));    
+
+      let lastSync = localStorage.getItem(prefix + "SYNC_TIME")
+      let ageMins = 9999
+      if (lastSync) {
+        lastSync = Date.parse(lastSync)        
+        ageMins = Math.ceil(Math.abs(new Date() - lastSync) / (1000 * 60))
+        updatedRefreshText()
+      }
+
+      if (ageMins > 20) {
+        syncBookings()
+      } else {
+        updatePage()
+      }
+      
+    }
+
+    document.body.addEventListener('keydown', function(e) {
+
+      if (isModalOpen()) {
+
+        if (e.key == "Escape") {
+          closeModal()
+        }
+        else if (e.key == "Enter") {
+          if (roomToBeBooked || deskToBe) {
+            let mt = document.getElementById('modalText')
+            mt.click()
+          }
+        }
+
+      } else {
+
+        if (e.key == "Enter" && selected) {
+          document.getElementById(nameToId(selected)).click()
+        }        
+        else if (e.key == "a") {
+          showEvents()
+        }
+        else if (e.key == "t") {
+          document.getElementById('Tardis').click()
+        }
+        else if (e.key == "w") {
+          document.getElementById('Watson').click()
+        }
+        else if (e.key == "q") {
+          document.getElementById('Qilin').click()
+        }
+        else if (e.key == "p") {
+          document.getElementById('Pulse').click()
+        }
+        else if (e.key == "r" && !cntrlIsPressed) {
+          syncBookings()        
+        }
+        else if (e.key == "Meta" || e.key == "Control") {
+          cntrlIsPressed = true;
+        }
+        else if (e.key == "Shift") {
+          if (todaysCalendar) {
+            useTomorrow()  
+          } else {
+            useToday()
+          }
+        }
+        else if (e.key == "ArrowUp") {
+          arrowUp()
+        }
+        else if (e.key == "ArrowRight") {
+          arrowRight()
+        }
+        else if (e.key == "ArrowDown") {
+          arrowDown()
+        }
+        else if (e.key == "ArrowLeft") {
+          arrowLeft()
+        }
+
+      }
+      
+      console.log(e)
+    })
+
+    function nameToId(idx) {
+      return 'Desk ' + (idx < 10 ? '0' : '') + idx
+    }
+
+    let selected
+
+    function arrowRight() {
+      console.log('arrowRight', selected)
+      if (!selected) {
+        selected = 3
+        document.getElementById(nameToId(selected)).classList.add('selected')
+      }
+      else {
+        document.getElementById(nameToId(selected)).classList.remove('selected')
+        if (selected <=15) {
+          selected += 3
+        } else if (selected == 17 || selected == 18) {
+          selected += 18
+        } else if (selected == 16) {
+          selected = 1
+        } else if (selected >=19 && selected <= 29) {
+          selected += 3
+        } else if (selected == 30) {
+          selected = 21
+        } else if (selected == 31 || selected == 32) {
+          selected += 2
+        } else if (selected == 35 || selected == 36) {
+          selected += 2
+        } else if (selected == 38) {
+          selected = 3
+        } else if (selected == 37) {
+          selected = 2
+        } else if (selected == 34) {
+          selected = 20
+        } else if (selected == 33) {
+          selected = 19
+        } 
+        document.getElementById(nameToId(selected)).classList.add('selected')
+      }
+    }
+
+    function arrowLeft() {
+      console.log('arrowLeft', selected)
+      if (!selected) {
+        selected = 3
+        document.getElementById(nameToId(selected)).classList.add('selected')
+      }
+      else {
+        document.getElementById(nameToId(selected)).classList.remove('selected')
+        if (selected >= 4 && selected <= 18) {
+          selected -= 3
+        } else if (selected == 1) {
+          selected = 16
+        } else if (selected == 2) {
+          selected = 37
+        } else if (selected == 3) {
+          selected = 38
+        } else if (selected == 38 || selected == 37) {
+          selected -= 2
+        } else if (selected == 35 || selected == 36) {
+          selected -= 18
+        } else if (selected >= 22 && selected <= 32) {
+          selected -= 3
+        } else if (selected == 21) {
+          selected = 30
+        } else if (selected == 20) {
+          selected = 34
+        } else if (selected == 19) {
+          selected = 33
+        } else if (selected == 33 || selected == 34) {
+          selected -= 2
+        } 
+        document.getElementById(nameToId(selected)).classList.add('selected')
+      }
+    }
+
+    function arrowDown() {
+      console.log('arrowDown', selected)
+      if (!selected) {
+        selected = 3
+        document.getElementById(nameToId(selected)).classList.add('selected')
+      }
+      else {
+        document.getElementById(nameToId(selected)).classList.remove('selected')
+        if (selected == 1) {
+          selected = 3
+        } else if (selected == 4) {
+          selected = 21
+        } else if (selected == 7) {
+          selected = 24
+        } else if (selected == 10) {
+          selected = 27
+        } else if (selected == 13) {
+          selected = 30
+        } else if (selected == 16) {
+          selected = 32
+        } else if (selected == 19) {
+          selected = 6
+        } else if (selected == 22) {
+          selected = 9
+        } else if (selected == 25) {
+          selected = 12
+        } else if (selected == 28) {
+          selected = 15
+        } else if (selected == 31) {
+          selected = 18
+        } else if (selected == 33) {
+          selected = 36
+        } else if (selected == 37) {
+          selected = 38
+        } else {
+          selected--
+        }
+        document.getElementById(nameToId(selected)).classList.add('selected')
+      }
+    }
+
+    function arrowUp() {
+      if (!selected) {
+        selected = 2
+        document.getElementById(nameToId(selected)).classList.add('selected')
+      }
+      else {
+        document.getElementById(nameToId(selected)).classList.remove('selected')
+        if (selected == 3) {
+          selected = 1
+        }
+        else if (selected == 6) {
+          selected = 19
+        }
+        else if (selected == 9) {
+          selected = 22
+        }
+        else if (selected == 12) {
+          selected = 25
+        }
+        else if (selected == 15) {
+          selected = 28
+        }
+        else if (selected == 18) {
+          selected = 31
+        }
+        else if (selected == 36) {
+          selected = 33
+        }        
+        else if (selected == 21) {
+          selected = 4
+        }
+        else if (selected == 24) {
+          selected = 7
+        }
+        else if (selected == 27) {
+          selected = 10
+        }
+        else if (selected == 30) {
+          selected = 13
+        }
+        else if (selected == 32) {
+          selected = 16
+        }
+        else if (selected == 38) {
+          selected = 37
+        }
+        else {
+          selected++
+        }
+        document.getElementById(nameToId(selected)).classList.add('selected')
+      }
+    }
+
+
+    // ignore control | command + R for page refresh
+    document.body.addEventListener('keyup', function(e) {
+      cntrlIsPressed = false;
+    })
+
+    let cntrlIsPressed = false;
+
+    function bookDesk(e) {
+      e = e || window.event;
+      e = e.target || e.srcElement;
+      let deskNumber = e.id
+
+      console.log('bookDesk', deskNumber)
+      document.getElementById(deskNumber)
+      let mt = document.getElementById('modalText')
+      let ele = document.getElementById(deskNumber)
+      if (ele.classList.contains('booked')) {
+        mt.innerHTML = 'This desk is already occupied.  Please pick another one'
+        mt.onclick = closeModal
+      } else {
+        deskToBeBooked = deskNumber
+        mt.innerHTML = 'Click here to book desk ' + deskNumber  + ' on ' + 
+          (todaysCalendar ? todaysDate : tomorrowsDate)
+        mt.onclick = bookDeskFinal
+        mt.classList.add('clickable')
+      }
+
+      mt.style.cursor = 'pointer'
+      openModal()
+    }
+
+    function bookDeskFinal() {
+      console.log('bookDeskFinal', deskToBeBooked)
+      let mt = document.getElementById('modalText')
+      mt.innerHTML = 'Booking desk for you now'
+      mt.classList.remove('clickable')
+      document.getElementById('loader').style.display = 'block';
+      let dataToSend = {deskNumber: deskToBeBooked, todaysCalendar: todaysCalendar}
+      google.script.run.withSuccessHandler(bookingResult).withFailureHandler(function(error){errorWithCall(error)}).bookDesk(dataToSend)
+      deskToBeBooked = ''
+    }
+
+    function bookingResult(result) {
+      console.log('bookingResult', result);
+      if (result.success) {
+        setDeskToBooked(result.deskNumber, result.bookingName)
+        closeModal()
+        showCelebrate() 
+      } else {
+        closeModal()
+        let mt = document.getElementById('modalText')
+        mt.innerHTML = 'It appears this desk has been booked already.  This application re-syncs after 10 minutes and will show that soon.  Please refresh (top right) and then try another desk in the meantime.'
+        openModal()
+      }
+      
+    }
+
+    function checkRoom(e) {
+      e = e || window.event;
+      e = e.target || e.srcElement;
+      let roomName = e.id
+
+      let mt = document.getElementById('modalText')
+      mt.innerHTML = 'Bookings for ' + roomName
+
+      let tbl = document.createElement('table')
+      tbl.classList.add('roomTable')
+      let tr = tbl.insertRow();
+      
+      roomBookingSlots.forEach(slot => {
+        let td = tr.insertCell();
+        td.appendChild(document.createTextNode(slot))
+      })
+
+      tr = tbl.insertRow();
+      roomBookingSlots.forEach(slot => {
+        let td = tr.insertCell();
+        let cellText = document.createTextNode('\u00A0')
+        if (slot == currentTime) {
+          td.classList.add('current')                
+        }
+        else if (slot < currentTime) {
+          td.classList.add('historical')                
+        }
+        
+        roomBookings.forEach(row => {
+          let rn = row[0]
+          let date = row[1]
+          let startTime = row[2]
+          let bookerEmail = row[3]
+
+          if (roomName == rn && startTime == slot) {
+            let bookerName = bookerEmail.split('.')[0]
+            cellText = document.createTextNode(bookerName)
+            td.classList.remove(...td.classList)
+            td.classList.add('booked')
+          } 
+        })
+        if (td.classList.length == 0) { // "available"
+          td.classList.add('free')
+          td.onclick = bookRoom
+          td.id = roomName + '---' + slot + '---' + todaysDateIso
+        }
+        td.appendChild(cellText)
+      })          
+
+      mt.appendChild(tbl);
+      openModal()
+
+    }
+
+    function bookRoom(e) {
+      e = e || window.event;
+      e = e.target || e.srcElement;
+      let cellId = e.id
+      console.log('bookRoom', e)
+
+      let params = cellId.split('---')
+      
+      let roomName = params[0]
+      let startTime = params[1]
+      let date = params[2]
+      let eventId = (params.length > 3 ? params[3] : '')
+
+      //console.log('roomName', roomName, 'startTime', startTime, 'date', 'eventId', eventId)
+
+      let mt = document.getElementById('modalText')
+      mt.innerHTML = 'Click here to proceed with booking ' + roomName  + ' at ' + startTime + (eventId ? (' for event ' + eventId) : '')
+      mt.style.cursor = 'pointer'
+      mt.onclick = bookRoomFinal      
+      
+      roomToBeBooked = roomName
+      timeToBeBooked = startTime
+      dateToBeBooked = date
+      eventForRoomToBeBooked = eventId
+    }
+
+    function bookRoomFinal() {
+      console.log('bookRoomFinal', roomToBeBooked, timeToBeBooked, dateToBeBooked, eventForRoomToBeBooked)
+      let mt = document.getElementById('modalText')
+      mt.innerHTML = 'Booking ' + roomToBeBooked + ' meeting room for you now'
+      mt.classList.remove('clickable')
+      document.getElementById('loader').style.display = 'block';
+      let dataToSend = {roomName: roomToBeBooked, startTime: timeToBeBooked, date: dateToBeBooked, eventId: eventForRoomToBeBooked}
+      google.script.run.withSuccessHandler(roomResult).withFailureHandler(function(error){errorWithCall(error)}).bookRoom(dataToSend)
+      roomToBeBooked = ''
+      timeToBeBooked = ''
+      dateToBeBooked = ''
+      eventForRoomToBeBooked = ''
+    }
+
+    function roomResult(result) {
+      console.log('roomResult', result);      
+
+      if (result.success) {
+        closeModal()
+        syncBookings()
+        setTimeout(showCelebrate, 2000)
+      } else {
+        closeModal()
+        let mt = document.getElementById('modalText')
+        mt.innerHTML = 'It appears this room has been booked already.  This application re-syncs after 10 minutes and will show that soon.  Please refresh (top right) and then try another room in the meantime.'
+        openModal()
+      }
+      
+    }    
+
+    function showCelebrate() {
+      let mt = document.getElementById('celebrate') 
+      mt.style.display = 'block'
+      setTimeout(hideCelebrate, 7000)
+    }
+
+    function hideCelebrate() {
+      let mt = document.getElementById('celebrate') 
+      mt.style.display = 'none'
+    }
+
+    function syncBookings() {
+      let mt = document.getElementById('modalText')
+      mt.innerHTML = 'Refreshing'
+      mt.classList.add('blink')
+      document.getElementById('loader').style.display = 'block';
+      openModal()
+      google.script.run.withSuccessHandler(syncResult).withFailureHandler(function(error){errorWithCall(error)}).syncBookings(todaysCalendar)
+    }
+
+    function errorWithCall(e) {
+      console.log('errorWithCall', e.message)
+      let mt = document.getElementById('modalText')
+      mt.innerHTML = 'Something unexpected happen.  Reload the page to see if that fixes it.'
+      openModal()  
+    }
+
+    function reloadPage() {
+      google.script.run.withSuccessHandler(function(url){
+        window.open(url,'_top');
+      }).getScriptURL();
+    }
+
+    function testError() {
+      google.script.run.withSuccessHandler(syncResult).withFailureHandler(function(error){errorWithCall(error)}).testError();
+    }
+
+    function setDeskToBooked(deskId, bookingName) {
+      let ele = document.getElementById(deskId)
+      ele.classList.add('booked');
+      ele.classList.remove('clickable');
+      let nameFromEmail = bookingName.split('.')[0]
+      ele.innerHTML = '<br><span class="bookedText">' + deskId + '<br>' + nameFromEmail + '</span>';
+      ele.title = bookingName
+
+      ele.style.backgroundImage = "url(" + profiles[bookingName] + ")";
+      ele.style.backgroundRepeat = "no-repeat"; 
+      ele.style.backgroundPosition = "center";
+
+      // addPersonAsInOffice(bookingName)
+    }
+
+    // function addPersonAsInOffice(email) {
+    //   if (profiles) {
+    //     let url = profiles[email]
+    //     if (url) {
+    //       let holder = document.getElementById('profiles')
+    //       let imgholder = document.createElement('span');
+    //       imgholder.classList.add('profileImage')
+    //       imgholder.title = email;
+    //       let img = document.createElement('img');
+    //       img.src = url;
+    //       img.alt = email;
+    //       img.title = email;
+    //       img.classList.add('profileImage')
+    //       imgholder.appendChild(img)
+    //       holder.appendChild(imgholder)
+    //     } else {
+    //       console.log('no image found for ' + email)
+    //     }
+    //   }
+    // }
+
+    function syncResult(result) {
+      console.log('syncResult', result);
+      syncToStorage(result)
+      updatePage()
+      closeModal()
+    }
+
+    function sanitize(string) {
+      const map = {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#x27;',
+          "/": '&#x2F;',
+      };
+      const reg = /[&<>"'/]/ig;
+      return new String(string).replace(reg, (match)=>(map[match]));
+    }
+
+    function updatePage() {
+      document.getElementById('today').innerHTML = 'Today<br>' + todaysDate
+      document.getElementById('tomorrow').innerHTML = 'Tomorrow<br>' + tomorrowsDate
+
+      // let profilePics = document.getElementById('profiles')
+      // profilePics.innerHTML = '';
+      // profilePics.appendChild(document.createTextNode('People in the office:'))
+      // profilePics.appendChild(document.createElement('br'))
+
+      for (const [deskName, bookings] of Object.entries(deskBookings)) {        
+        let ele = document.getElementById(deskName)        
+        let bookingName
+        if (todaysCalendar) {
+          bookingName = bookings[todaysDateIso]
+        } else {
+          bookingName = bookings[tomorrowsDateIso]
+        }        
+
+        if (bookingName) {
+          setDeskToBooked(deskName, bookingName)
+        } else {
+          ele.classList.remove('booked');
+          ele.classList.add('clickable');
+          ele.innerHTML = '<br> ' + deskName;
+          ele.style.backgroundImage = '';
+        }
+      }
+
+      //console.log('roomBookings', roomBookings)
+
+      rooms.forEach(roomName => {
+        let eleRoom = document.getElementById(roomName)
+        eleRoom.classList.remove('booked')
+        eleRoom.classList.add('clickable')
+        eleRoom.innerHTML = '<br>' + roomName
+      })
+
+      roomBookings.forEach(row => {
+        let roomName = row[0]
+        let date = row[1]
+        let startTime = row[2]
+        let bookerEmail = row[3]
+        //console.log('roomName', roomName, date, startTime, bookerEmail)
+
+        let eleRoom = document.getElementById(roomName)
+        if (startTime == currentTime) {
+          eleRoom.classList.add('booked')
+          eleRoom.classList.remove('clickable')
+          let bookerName = bookerEmail.split('.')[0]
+          eleRoom.innerHTML = '<br>' + roomName + '<br>' + bookerName
+        } 
+      })
+
+    }    
+
+    let timeOutRef = undefined
+
+    function showDeskInfo(e) {
+      clearTimeout(timeOutRef)
+      let deskName = e.srcElement.id
+      if (deskName && deskInfo && deskInfo[deskName]) {
+        let dInfo = sanitize(deskInfo[deskName])
+        let infoPanel = document.getElementById('deskInfoPanel')
+        infoPanel.innerHTML = '<b>' + deskName + '</b><br/><br/>'
+        infoPanel.innerHTML += dInfo
+        infoPanel.innerHTML += '<br/><br/><a target="_blank" href="https://docs.google.com/spreadsheets/d/1R7vxk9EmwVVTEHKWp952Tt7MS7T0VguZfwNBgtSNMzo/edit">Update desk info</a>'
+        infoPanel.style.display = 'block';
+      }
+    }
+
+    function hideDeskInfo(e) {
+      timeOutRef = setTimeout(() => {
+        let infoPanel = document.getElementById('deskInfoPanel')
+        infoPanel.style.display = 'none';
+      }, 5000);
+    }
+
+    function showEvents() {
+
+      let tbl = document.createElement('table')
+      tbl.classList.add('roomTable')
+      let tr = tbl.insertRow()
+      let td = tr.insertCell()
+      td.appendChild(document.createTextNode(''))
+      td = tr.insertCell()
+      td.appendChild(document.createTextNode('Start'))
+      td = tr.insertCell()
+      td.appendChild(document.createTextNode('Finish'))
+      // td = tr.insertCell()
+      // td.appendChild(document.createTextNode('Booked Room'))
+
+      rooms.forEach(rn => {
+        td = tr.insertCell()
+        td.appendChild(document.createTextNode(rn))
+      })
+
+
+      let eventSummary = ''
+      scheduledEvents.forEach( e => {
+        tr = tbl.insertRow()
+        td = tr.insertCell()
+
+        if (e.meetLink) {
+          let a = document.createElement('a')
+          a.appendChild(document.createTextNode(e.description))
+          a.title = "my title text"
+          a.href = e.meetLink
+          a.target = '_blank'
+          td.appendChild(a)
+        } else {
+          td.appendChild(document.createTextNode(e.description))
+        }
+
+        td.classList.add('eventDescription')
+        td = tr.insertCell()
+        td.appendChild(document.createTextNode(e.start))
+        td = tr.insertCell()
+        td.appendChild(document.createTextNode(e.finish))
+
+        rooms.forEach(rn => {
+          td = tr.insertCell()
+          if (rn == e.roomName) {
+            let roomNode = document.createTextNode('Booked')          
+            td.appendChild(roomNode)
+            td.classList.add('yourReservation')
+          } else if (e.roomName) { // you have a booking for a different room
+            td.appendChild(document.createTextNode(''))
+          } else {
+            let available = isRoomAvailable(rn, e.start)            
+            if (available) {
+              let roomNode = document.createTextNode('Add')          
+              td.onclick = bookRoom
+              td.id = rn + '---' + e.start + '---' + e.date + '---' + e.eventId
+              td.style.cursor = 'pointer'
+              td.classList.add('clickable')
+              td.appendChild(roomNode)
+            } else {
+              let roomNode = document.createTextNode('Busy')          
+              td.appendChild(roomNode)
+              td.classList.add('booked')
+            }
+          }
+        })
+
+      })
+
+      let mt = document.getElementById('modalText')
+      mt.appendChild(tbl)
+      openModal()
+    }
+
+    function isRoomAvailable(rn, st) {
+      let available = true
+      roomBookings.forEach(row => {
+        let roomName = row[0]
+        let date = row[1]
+        let startTime = row[2]
+        let bookerEmail = row[3]
+        if (startTime == st && roomName == rn) {
+          available = false
+        } 
+      })
+      return available
+    }
+
+    function initAll() {      
+      initModal()      
+      for (var i = 1; i <= 38; i++) {
+        initDivs(i)
+      }
+      syncFromStorage()            
+      setInterval(updatedRefreshText, (1000*60))
+    }
+
+    let dateForDataSaved
+    addEventListener("visibilitychange", (event) => {
+      //console.log('visibilitychange', document.visibilityState)
+      if (document.visibilityState == 'visible') {
+        //console.log(todaysDateIso)
+        if (!dateForDataSaved) { 
+          dateForDataSaved = todaysDateIso
+        }
+        let currentDateIso = isoVersion(new Date())        
+        if (currentDateIso != dateForDataSaved) {
+          console.log('check stale', currentDateIso, todaysDateIso)
+          dateForDataSaved = undefined
+          syncBookings()          
+        } else {
+          console.log('page up to date', currentDateIso, todaysDateIso)
+        }
+      }
+    })
+
+    function pad(num) {
+      return (num < 10 ? '0' : '') + num
+    }
+
+    function isoVersion(d) {
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+    }
+
+    function initDivs(idx) {
+      var ele = document.createElement("div");
+      ele.id = nameToId(idx)
+      ele.onclick = bookDesk
+      ele.innerHTML = '<br>';
+      ele.classList.add('desk' + idx);
+      ele.classList.add('desk');            
+      ele.onmouseover = showDeskInfo
+      ele.onmouseout = hideDeskInfo
+      ele.style = 'white-space: pre-wrap;' // fix for multi-line titles
+      document.body.appendChild(ele);      
+    }
+
+    window.onload = initAll
+
+    function initModal() {
+      var modal = document.getElementById("myModal");
+      var span = document.getElementsByClassName("close")[0];
+      span.onclick = function() {
+        closeModal()
+      }
+      // When the user clicks anywhere outside of the modal, close it
+      window.onclick = function(event) {
+        if (event.target == modal) {
+          closeModal()
+        }
+      }
+      document.getElementById('loader').style.display = 'none';
+    }
+
+    function openModal() {
+      var modal = document.getElementById("myModal");
+      modal.classList.add('visible');
+      let mt = document.getElementById('modalText')
+      mt.style.display = 'block';
+    }
+
+    function isModalOpen() {
+      return document.getElementById('modalText').innerHTML != ''
+    }
+
+    function closeModal() {
+      let modal = document.getElementById("myModal");
+      modal.classList.remove('visible');
+      let mt = document.getElementById('modalText')
+      mt.innerHTML = ''
+      mt.onclick = ''
+      mt.style.cursor = ''
+      mt.style.display = 'none';
+      mt.classList.remove('blink')
+      mt.classList.remove('clickable')
+      document.getElementById('loader').style.display = 'none';
+    }
+
+    function useToday() {
+      showRooms()
+      document.getElementById('today').classList.add('selected');
+      document.getElementById('tomorrow').classList.remove('selected');
+      todaysCalendar = true
+      syncFromStorage()
+    }
+
+    function useTomorrow() {
+      hideRooms()
+      document.getElementById('tomorrow').classList.add('selected');
+      document.getElementById('today').classList.remove('selected');
+      todaysCalendar = false
+      syncFromStorage()
+    }
+
+    function hideRooms() {
+      document.getElementById('Pulse').style.display = 'none';
+      document.getElementById('Qilin').style.display = 'none';
+      document.getElementById('Tardis').style.display = 'none';
+      document.getElementById('Watson').style.display = 'none';
+    }
+
+    function showRooms() {
+      document.getElementById('Pulse').style.display = 'block';
+      document.getElementById('Qilin').style.display = 'block';
+      document.getElementById('Tardis').style.display = 'block';
+      document.getElementById('Watson').style.display = 'block';
+    }
+
+  </script>
+
+  
+  <!-- <span onclick="testError()">testError</span> -->
+  <span class="front">Front Door</span>
+  <span class="front"><a href="https://members.hubaustralia.com/calendar" target="_blank">HUB Meeting Rooms</a></span>
+  
+  <span id="scheduled" class="clickable" onclick="showEvents()">Add Room to a Scheduled Meeting</span>
+  <span class="refresh0 clickable" title="Google Calendar (The source of truth)"><a href="https://calendar.google.com" target="_blank">GCal</a></span>
+  <span id="refresh" class="refresh clickable" onclick="syncBookings()">Refresh</span>
+
+  <span id="deskInfoPanel" style="display:none"> </span>
+
+  <table class="selector" border="0">
+    <tr>
+      <td id="today" class="selected" width="50%" align="center" onclick="useToday()">Today</td>
+      <td id="tomorrow" width="50%" align="center" onclick="useTomorrow()">Next Day</td>
+    </tr>
+  </table>
+
+    <div id="myModal" class="modal">
+      <div class="modal-content">        
+        <span id="loader"></span>
+        <span id="modalText"></span>
+        <span class="close">&times;</span>
+      </div>
+    </div>
+
+    <div id="Pulse" class="room" onclick="checkRoom()"></div>
+    <div id="Qilin" class="room" onclick="checkRoom()"></div>
+    <div id="Tardis" class="room" onclick="checkRoom()"></div>
+    <div id="Watson" class="room" onclick="checkRoom()"></div>
+
+    <div id="celebrate">
+      <div class="firework"></div>
+      <div class="firework"></div>
+      <div class="firework"></div>
+    </div>
+
+</body>
+
+</html>
