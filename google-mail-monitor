@@ -1,44 +1,56 @@
+const modelId = "gemini-2.5-flash-lite"; 
+
 /**
  * Main function to run weekly. 
  * Configure this to run on a "Time-driven trigger".
  */
 function runWeeklyEmailAgent() {
-  const GMAIL_FILTER = "label:school---clara"; 
-  const GEMINI_API_KEY = "???"; 
+  const GMAIL_FILTERS = [
+  "label:school---audrey",
+  "label:school---clara",
+  "label:school---harriet",
+]; 
+
+  const GEMINI_API_KEY = PropertiesService.getScriptProperties().getProperty("GEM_KEY_PROP");
   
-  // 1. Fetch relevant threads
-  const threads = GmailApp.search(GMAIL_FILTER);
-  if (threads.length === 0) {
-    console.log("No new emails found matching the filter.");
-    return;
-  }
+  // Loop through each filter in the array
+  for (const filter of GMAIL_FILTERS) {
+    console.log(`Processing filter: ${filter}`);
 
-  // 2. Aggregate email content
-  let combinedContent = "";
-  threads.forEach(thread => {
-    const messages = thread.getMessages();    
-    messages.forEach(msg => {
-      console.log(msg.getPlainBody().slice(0, 20))
-      combinedContent += `--- New Message ---\nDate: ${msg.getDate()}\nContent: ${msg.getPlainBody()}\n`;
+    // 1. Fetch relevant threads for the current filter
+    const threads = GmailApp.search(filter);
+    if (threads.length === 0) {
+      console.log(`No new emails found matching the filter: ${filter}`);
+      continue; // Skip the rest of the loop and move to the next filter
+    }
+
+    // 2. Aggregate email content
+    let combinedContent = "";
+    threads.forEach(thread => {
+      const messages = thread.getMessages();    
+      messages.forEach(msg => {
+        // Keeping your console.log for debugging, but you might want to remove it later if it gets noisy
+        console.log(msg.getPlainBody().slice(0, 20)); 
+        combinedContent += `--- New Message ---\nDate: ${msg.getDate()}\nContent: ${msg.getPlainBody()}\n`;
+      });
     });
-  });
 
-  // 3. Send to AI for extraction (The "Agent" part)
-  const report = callGeminiAgent(combinedContent, GEMINI_API_KEY);
+    // 3. Send to AI for extraction (The "Agent" part)
+    const report = callGeminiAgent(combinedContent, GEMINI_API_KEY);
 
-  // 4. Notify yourself
-  GmailApp.sendEmail(
-    Session.getActiveUser().getEmail(), 
-    "📅 Your Weekly Activity Digest", 
-    report
-  );
+    // 4. Notify yourself (dynamically adding the filter name to the subject)
+    GmailApp.sendEmail(
+      Session.getActiveUser().getEmail(), 
+      `📅 Weekly Activity Digest: ${filter}`, 
+      report
+    );
+  }
 }
 
 /**
  * Sends text to Gemini to extract structured activity data.
  */
-function callGeminiAgent(text, apiKey) {
-  const modelId = "gemini-2.0-flash"; 
+function callGeminiAgent(text, apiKey) {  
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
   
   const prompt = `Analyze the following email content. Identify all specific activities, deadlines, or meetings scheduled for NEXT week. 
