@@ -1,0 +1,62 @@
+/**
+ * Main function to run weekly. 
+ * Configure this to run on a "Time-driven trigger".
+ */
+function runWeeklyEmailAgent() {
+  const GMAIL_FILTER = "label:school---clara"; 
+  const GEMINI_API_KEY = "???"; 
+  
+  // 1. Fetch relevant threads
+  const threads = GmailApp.search(GMAIL_FILTER);
+  if (threads.length === 0) {
+    console.log("No new emails found matching the filter.");
+    return;
+  }
+
+  // 2. Aggregate email content
+  let combinedContent = "";
+  threads.forEach(thread => {
+    const messages = thread.getMessages();    
+    messages.forEach(msg => {
+      console.log(msg.getPlainBody().slice(0, 20))
+      combinedContent += `--- New Message ---\nDate: ${msg.getDate()}\nContent: ${msg.getPlainBody()}\n`;
+    });
+  });
+
+  // 3. Send to AI for extraction (The "Agent" part)
+  const report = callGeminiAgent(combinedContent, GEMINI_API_KEY);
+
+  // 4. Notify yourself
+  GmailApp.sendEmail(
+    Session.getActiveUser().getEmail(), 
+    "📅 Your Weekly Activity Digest", 
+    report
+  );
+}
+
+/**
+ * Sends text to Gemini to extract structured activity data.
+ */
+function callGeminiAgent(text, apiKey) {
+  const modelId = "gemini-2.0-flash"; 
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+  
+  const prompt = `Analyze the following email content. Identify all specific activities, deadlines, or meetings scheduled for NEXT week. 
+                  Provide a clean, bulleted list with dates and a brief summary for each. 
+                  Email Content: \n${text}`;
+
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }]
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload)
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  const json = JSON.parse(response.getContentText());
+  
+  return json.candidates[0].content.parts[0].text;
+}
